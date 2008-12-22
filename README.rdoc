@@ -211,6 +211,12 @@ These are run in Sinatra::EventContext before every event.
     .. this code will run before each event ..
   end
 
+These are run in Sinatra::EventContext after every event.
+
+  after do
+    .. this code will run after each event ..
+  end
+
 == Halt!
 
 To immediately stop a request during a before filter or event use:

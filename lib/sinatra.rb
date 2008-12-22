@@ -872,7 +872,7 @@ module Sinatra
     # Hash of template name mappings.
     attr_reader :templates
 
-    # Hash of filters with event name keys (:before) and arrays of
+    # Hash of filters with event name keys (:before, :after) and arrays of
     # handlers as values.
     attr_reader :filters
 
@@ -888,7 +888,7 @@ module Sinatra
     # top-level the method is forwarded to the default application
     # (Sinatra::application).
     FORWARD_METHODS = %w[
-      get put post delete head template layout before error not_found
+      get put post delete head template layout before after error not_found
       configures configure set set_options set_option enable disable use
       development? test? production?
     ]
@@ -1123,6 +1123,7 @@ module Sinatra
 
     # Define a request filter. When <tt>type</tt> is <tt>:before</tt>, execute the
     # block in the context of each request before matching event handlers.
+    # <tt>:after</tt> executes after each request handler executes.
     def filter(type, &b)
       filters[type] << b
     end
@@ -1131,6 +1132,12 @@ module Sinatra
     # matching event handlers.
     def before(&b)
       filter :before, &b
+    end
+
+    # Invoke the block in the context of each request after invoking
+    # matching event handler.
+    def after(&b)
+      filter :after, &b
     end
 
     # True when environment is :development.
@@ -1236,7 +1243,8 @@ module Sinatra
     # 3. Create new EventContext to house event handler evaluation.
     # 4. Invoke each #before filter in context of EventContext object.
     # 5. Invoke event handler in context of EventContext object.
-    # 6. Return response to Rack.
+    # 6. Invoke each #after filter in the context of EventContext object.
+    # 7. Return response to Rack.
     #
     # See the Rack specification for detailed information on the
     # +env+ argument and return value.
@@ -1251,7 +1259,9 @@ module Sinatra
             context.route_params = result.params
             context.response.status = result.status
             context.reset!
-            [:complete, context.instance_eval(&result.block)]
+            r = context.instance_eval(&result.block)
+            filters[:after].each { |f| context.instance_eval(&f) }
+            [:complete, r]
           end
         body = returned.to_result(context)
       rescue => e

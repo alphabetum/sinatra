@@ -28,3 +28,22 @@ context "before filters" do
   end
 
 end
+
+context "after filters" do
+  
+  setup do
+    Sinatra.application = nil
+    @app = Sinatra.application
+  end
+  
+  specify "should be executed after the request" do
+    invoked = 0
+    @app.before { invoked = 2 }
+    @app.get('/') { invoked += 2 }
+    @app.after { invoked *= 2 }
+    get_it '/'
+    should.be.ok
+    invoked.should.be == 8
+  end
+  
+end
